@@ -7,3 +7,4 @@ export * from './utils/QueryBuilder';
 export { createSyncEngine } from './createEngine';
 export { createRepository } from './repository';
 export * from './types';
+export * from './config';
