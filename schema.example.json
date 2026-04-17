@@ -1,0 +1,63 @@
+{
+  "dbName": "notes",
+  "tables": {
+    "files": {
+      "fields": {
+        "id": "string",
+        "name": "string",
+        "parent_id": "string|null",
+        "next_id": "string|null",
+        "prev_id": "string|null",
+        "is_root": "boolean|null",
+        "created_at": "number|string",
+        "updated_at": "number|string"
+      }
+    },
+    "statements": {
+      "fields": {
+        "id": "string",
+        "name": "string",
+        "file_id": "string",
+        "next_id": "string|null",
+        "prev_id": "string|null",
+        "size": "number",
+        "type": {
+          "enum": [
+            "definition",
+            "theorem",
+            "proposition"
+          ]
+        },
+        "content": {
+          "content": "string",
+          "proof": "string|null"
+        },
+        "created_at": "number|string",
+        "updated_at": "number|string"
+      }
+    },
+    "operations": {
+      "fields": {
+        "id": "string",
+        "entity": "string",
+        "op_type": {
+          "enum": [
+            "insert",
+            "update",
+            "delete"
+          ]
+        },
+        "payload": "object|null",
+        "client_id": "string|null",
+        "client_op_id": "string|null",
+        "created_at": "number",
+        "sent_at": "number|null",
+        "processed": "boolean|null",
+        "attempts": "number|null",
+        "last_error": "string|null",
+        "undone": "boolean|null",
+        "meta": "object|null"
+      }
+    }
+  }
+}
