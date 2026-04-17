@@ -1,14 +1,12 @@
 #!/usr/bin/env node
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+/* Minimal CLI wrapper to generate Next.js API routes and service worker
+   Usage: sync-engine <schema.json> [projectRoot]
+*/
+const fs = require('fs');
+const path = require('path');
 
-type FieldDef = string | { enum: string[] } | Record<string, FieldDef>;
-type TableDef = { fields?: Record<string, FieldDef> } | Record<string, FieldDef>;
-type Schema = { dbName?: string; db?: string; name?: string; tables: Record<string, TableDef> };
-
-function usage(): never {
-  console.error('Usage: node --loader ts-node/esm services/sync-engine/scripts/generate.ts <schema.json> [projectRoot]');
+function usage() {
+  console.error('Usage: sync-engine <schema.json> [projectRoot]');
   process.exit(1);
 }
 
@@ -23,19 +21,19 @@ if (!fs.existsSync(schemaPath)) {
   process.exit(1);
 }
 
-let schemaRaw: string;
+let schemaRaw;
 try {
   schemaRaw = fs.readFileSync(schemaPath, 'utf8');
-} catch (e: any) {
-  console.error('Failed to read schema file:', e?.message ?? e);
+} catch (e) {
+  console.error('Failed to read schema file:', e && e.message ? e.message : e);
   process.exit(1);
 }
 
-let schema: Schema;
+let schema;
 try {
-  schema = JSON.parse(schemaRaw) as Schema;
-} catch (e: any) {
-  console.error('Invalid JSON in schema file:', e?.message ?? e);
+  schema = JSON.parse(schemaRaw);
+} catch (e) {
+  console.error('Invalid JSON in schema file:', e && e.message ? e.message : e);
   process.exit(1);
 }
 
@@ -47,13 +45,12 @@ if (!dbName || !tables || typeof tables !== 'object') {
   process.exit(1);
 }
 
-function renderCheckType(): string {
+function renderCheckType() {
   return `const checkType = (
-  val: unknown,
-  expected: string | string[] | null
-): boolean => {
+  val, expected
+) => {
   if (expected === null) return val === null;
-  if (Array.isArray(expected)) return expected.includes(val as string);
+  if (Array.isArray(expected)) return expected.includes(val);
   switch (expected) {
     case "number":
       return typeof val === "number";
@@ -77,7 +74,7 @@ function renderCheckType(): string {
 };\n`;
 }
 
-function serializeAllowed(fields: Record<string, FieldDef>): string {
+function serializeAllowed(fields) {
   const entries = Object.entries(fields).map(([k, v]) => {
     if (typeof v === 'string') {
       return `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`;
@@ -85,8 +82,8 @@ function serializeAllowed(fields: Record<string, FieldDef>): string {
     if (Array.isArray(v)) {
       return `  ${JSON.stringify(k)}: ${JSON.stringify(v)}`;
     }
-    if (v && typeof v === 'object' && 'enum' in v && Array.isArray((v as any).enum)) {
-      return `  ${JSON.stringify(k)}: ${JSON.stringify((v as any).enum)}`;
+    if (v && typeof v === 'object' && Array.isArray(v.enum)) {
+      return `  ${JSON.stringify(k)}: ${JSON.stringify(v.enum)}`;
     }
     if (v && typeof v === 'object') {
       return `  ${JSON.stringify(k)}: ${JSON.stringify('object')}`;
@@ -98,31 +95,29 @@ ${entries.join(',\n')}
 }`;
 }
 
-function renderFieldCustomChecks(fields: Record<string, FieldDef>): string {
-  const parts: string[] = [];
+function renderFieldCustomChecks(fields) {
+  const parts = [];
   for (const [k, v] of Object.entries(fields)) {
     if (v && typeof v === 'object' && !('enum' in v)) {
-      const checks = Object.entries(v as Record<string, FieldDef>).map(([subk, subv]) => {
+      const checks = Object.entries(v).map(([subk, subv]) => {
         if (typeof subv === 'string') {
-          return 'if (!checkType(obj[' + JSON.stringify(k) + '][' + JSON.stringify(subk) + '], ' + JSON.stringify(subv) + ')) return { ok: false, error: ' + JSON.stringify(k + '.' + subk + ' has invalid type') + ' }';
+          return `if (!checkType(obj[${JSON.stringify(k)}][${JSON.stringify(subk)}], ${JSON.stringify(subv)})) return { ok: false, error: \`${k}.${subk} has invalid type\` }`;
         }
-        if (subv && typeof subv === 'object' && 'enum' in subv) {
-          return 'if (![' + (subv as any).enum.map((e: any) => JSON.stringify(e)).join(', ') + '].includes(obj[' + JSON.stringify(k) + '][' + JSON.stringify(subk) + '] as string)) return { ok: false, error: ' + JSON.stringify(k + '.' + subk + ' has invalid value') + ' }';
+        if (subv && typeof subv === 'object' && Array.isArray(subv.enum)) {
+          return `if (![${subv.enum.map(e => JSON.stringify(e)).join(', ')}].includes(obj[${JSON.stringify(k)}][${JSON.stringify(subk)}])) return { ok: false, error: \`${k}.${subk} has invalid value\` }`;
         }
         return `// unsupported nested type for ${k}.${subk}`;
       });
-      parts.push('if (typeof obj[' + JSON.stringify(k) + '] !== "object" || obj[' + JSON.stringify(k) + '] === null) return { ok: false, error: ' + JSON.stringify('Invalid ' + k + ' object') + ' };\n' + checks.join('\n'));
+      parts.push(`if (typeof obj[${JSON.stringify(k)}] !== 'object' || obj[${JSON.stringify(k)}] === null) return { ok: false, error: \`Invalid ${k} object\` };
+${checks.join('\n')}`);
     }
-    if (v && typeof v === 'object' && 'enum' in v) {
-      parts.push('if (![' + (v as any).enum.map((e: any) => JSON.stringify(e)).join(', ') + '].includes(obj[' + JSON.stringify(k) + '] as string)) return { ok: false, error: ' + JSON.stringify('Invalid value for ' + k) + ' }');
+    if (v && typeof v === 'object' && Array.isArray(v.enum)) {
+      parts.push(`if (![${v.enum.map(e => JSON.stringify(e)).join(', ')}].includes(obj[${JSON.stringify(k)}] as string)) return { ok: false, error: \`Invalid value for ${k}\` }`);
     }
   }
   return parts.join('\n\n');
 }
 
-// Use simple template files under ../templates to generate code.
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const templatesDir = path.join(__dirname, '..', 'templates');
 const routeTplPath = path.join(templatesDir, 'route.ts.tpl');
 const swTplPath = path.join(templatesDir, 'sw.js.tpl');
@@ -135,18 +130,17 @@ if (!fs.existsSync(routeTplPath)) {
 const routeTpl = fs.readFileSync(routeTplPath, 'utf8');
 const swTpl = fs.existsSync(swTplPath) ? fs.readFileSync(swTplPath, 'utf8') : null;
 
-// Generate files from templates
 for (const [tableName, tableDef] of Object.entries(tables)) {
-  const tableObj = (tableDef as any).fields || tableDef;
-  const allowedLiteral = serializeAllowed(tableObj as Record<string, FieldDef>);
-  const customChecks = renderFieldCustomChecks(tableObj as Record<string, FieldDef>);
+  const tableObj = tableDef.fields || tableDef;
+  const allowedLiteral = serializeAllowed(tableObj);
+  const customChecks = renderFieldCustomChecks(tableObj);
   const checkTypeCode = renderCheckType();
 
   let content = routeTpl
-    .replaceAll('__TABLE__', JSON.stringify(tableName))
-    .replaceAll('__ALLOWED_LITERAL__', allowedLiteral)
-    .replaceAll('__CUSTOM_CHECKS__', customChecks)
-    .replaceAll('__CHECK_TYPE__', checkTypeCode);
+    .split('__TABLE__').join(JSON.stringify(tableName))
+    .split('__ALLOWED_LITERAL__').join(allowedLiteral)
+    .split('__CUSTOM_CHECKS__').join(customChecks)
+    .split('__CHECK_TYPE__').join(checkTypeCode);
 
   const outDir = path.join(projectRoot, 'app', 'api', tableName);
   fs.mkdirSync(outDir, { recursive: true });
@@ -155,10 +149,9 @@ for (const [tableName, tableDef] of Object.entries(tables)) {
   console.log('Wrote', outPath);
 }
 
-// Generate service worker from template or fallback
 const swOut = path.join(projectRoot, 'public', 'sw.js');
 if (swTpl) {
-  const swContent = swTpl.replaceAll('__DB_NAME__', dbName).replaceAll('__TABLES__', Object.keys(tables).join(', '));
+  const swContent = swTpl.split('__DB_NAME__').join(dbName).split('__TABLES__').join(Object.keys(tables).join(', '));
   fs.mkdirSync(path.dirname(swOut), { recursive: true });
   fs.writeFileSync(swOut, swContent, 'utf8');
   console.log('Wrote', swOut);

@@ -1,17 +1,42 @@
 {
   "name": "sync-engine",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "private": false,
+  "description": "Sync engine specialized for Cloudflare D1 + indexedDB and Next.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "sync-engine": "bin/sync-engine.js"
+  },
   "files": [
     "dist",
-    "src"
+    "src",
+    "bin",
+    "templates",
+    "scripts"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/sync-engine"
+  },
+  "keywords": [
+    "cloudflare",
+    "d1",
+    "indexeddb",
+    "nextjs",
+    "service-worker",
+    "sync"
+  ],
+  "author": "",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "typescript": "^5.0.0"
   }
 }
