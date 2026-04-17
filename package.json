@@ -1,5 +1,5 @@
 {
-  "name": "sync-engine",
+  "name": "@mintcd/sync-engine",
   "version": "0.1.0",
   "private": false,
   "description": "Sync engine specialized for Cloudflare D1 + indexedDB and Next.js",

@@ -10,13 +10,13 @@ Quick generator usage
 
 ```bash
 # from anywhere after publishing the package
-npx sync-engine path/to/schema.json [projectRoot]
+npx @mintcd/sync-engine path/to/schema.json [projectRoot]
 ```
 
 Example:
 
 ```bash
-npx sync-engine ./schema.example.json ./my-next-app
+npx @mintcd/sync-engine ./schema.example.json ./my-next-app
 ```
 
 Client usage
@@ -24,7 +24,7 @@ Client usage
 Import the runtime helpers from the package in your client code:
 
 ```ts
-import { createSyncEngine } from 'sync-engine';
+import { createSyncEngine } from '@mintcd/sync-engine';
 
 const engine = createSyncEngine(schemaOrConfig, { autoRegisterSW: true });
 ```
